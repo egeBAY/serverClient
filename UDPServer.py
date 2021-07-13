@@ -12,6 +12,7 @@ class Server():
         self.port = 1024
         self.format = 'utf-8'
         self.sock.bind((self.host, self.port))
+        print("waiting for client\n on host: ",self.host,"\n port: ",self.port)
 
     def generateRandom(self):
 
@@ -28,7 +29,8 @@ class Server():
 
         while True: 
             data, addr = self.sock.recvfrom(2048)
-            print(str(data))
+            if not str(data) == "":
+                print(str(data))
             msgServer = str(self.generateRandom()).encode(self.format)
             self.sock.sendto(msgServer, addr)
 
