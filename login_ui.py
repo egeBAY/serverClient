@@ -2,7 +2,6 @@ import sys
 import sqlite3
 import socket
 import threading
-import time
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow,QWidget
@@ -91,7 +90,8 @@ class LoggedIn(QWidget):
         self.connectClient("Client Connected !!!")
 
     def connectServer(self) -> None:
-        host = socket.gethostbyname(socket.gethostname())
+        host = "172.16.60.231"
+        #socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
 
@@ -105,7 +105,7 @@ class LoggedIn(QWidget):
             sock.sendto(msgServer, addr)
 
     def connectClient(self, msg) -> None:
-        host = socket.gethostbyname(socket.gethostname())
+        host = socket.gethostbyname(socket.gethostname())    # "172.16.60.231"
         port = 1024
         format = 'utf-8'
 
@@ -114,7 +114,8 @@ class LoggedIn(QWidget):
         t1 = threading.Timer(2,self.connectClient,args=(msg,))
         t1.daemon = True
         t1.start()
-
+        
+        global data
         client_sock.sendto(msg.encode(format), (host, port))
         data, addr = client_sock.recvfrom(2048)
         print("From Server: {}".format(str(data)))
@@ -126,18 +127,21 @@ class LoggedIn(QWidget):
         self.sendingText = QtWidgets.QTextEdit()
         self.sendButton = QtWidgets.QPushButton("GONDER")
         self.deleteButton = QtWidgets.QPushButton("TEMIZLE")
+        self.serverButton = QtWidgets.QPushButton("SERVER")
 
         v_box = QtWidgets.QVBoxLayout()
 
         v_box.addWidget(self.sendingText)
         v_box.addWidget(self.sendButton)
         v_box.addWidget(self.deleteButton)
+        v_box.addWidget(self.serverButton)
 
         self.deleteButton.clicked.connect(self.click)
         self.sendButton.clicked.connect(self.click)
+        self.serverButton.clicked.connect(self.click)
 
         self.setLayout(v_box)
-    
+   
     def init_server_ui(self):
 
         self.received_text = QtWidgets.QTextEdit()
@@ -148,8 +152,9 @@ class LoggedIn(QWidget):
         v_box.addWidget(self.deleteTextButton)
 
         self.deleteTextButton.clicked.connect(self.click)
+        
         self.setLayout(v_box)
-    
+
     def click(self):
 
         sender = self.sender()
@@ -158,9 +163,51 @@ class LoggedIn(QWidget):
             self.sendingText.clear()
         elif sender.text() == "CLEAR":
             self.received_text.clear()
-        else:
+        elif sender.text() == "GONDER":
             print("Server'a {} gönderildi.".format(self.sendingText.toPlainText()))
             self.connectClient(self.sendingText.toPlainText())
+        else:
+            widget.addWidget(serverUi())
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+
+class serverUi(QWidget):
+    
+    def __init__(self):
+        super().__init__()
+
+        self.login = LoggedIn()
+
+        self.init_server_ui()
+    
+    def init_server_ui(self):
+
+        self.received_text = QtWidgets.QTextEdit()
+        self.deleteTextButton = QtWidgets.QPushButton("CLEAR")
+        self.clientButton = QtWidgets.QPushButton("CLIENT")
+
+        v_box = QtWidgets.QVBoxLayout()
+        v_box.addWidget(self.received_text)
+        v_box.addWidget(self.deleteTextButton)
+        v_box.addWidget(self.clientButton)
+
+        self.deleteTextButton.clicked.connect(self.clickServerUi)
+        self.clientButton.clicked.connect(self.clickServerUi)
+
+        self.received_text.setPlainText(data.decode('utf-8'))
+
+        self.setLayout(v_box)
+    
+    def clickServerUi(self):
+
+        senderSrv = self.sender()
+
+        if senderSrv.text() == "CLEAR":
+            self.received_text.clear()
+        else: 
+            widget.addWidget(LoggedIn())
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+
+        
 
 class Menu(QMainWindow):
     
@@ -193,16 +240,16 @@ class Menu(QMainWindow):
 
     def runMenus(self,action):
         if action.text() == "Client":
-            print("Clienta basildi!!!")          
+            print("Clienta basildi!!!")
         else:
             print("Servera basildi!!!")
-
 
 app = QtWidgets.QApplication(sys.argv)
 
 mainWindow = Window()
 widget = QtWidgets.QStackedWidget()
 widget.addWidget(mainWindow)
+widget.resize(800,550)
 widget.show()
 
 sys.exit(app.exec_())

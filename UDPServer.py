@@ -25,10 +25,11 @@ class Server():
         tServer = threading.Timer(2,self.listenClient)
         tServer.daemon = True
         tServer.start()
-
+ 
         while True: 
             data, addr = self.sock.recvfrom(2048)
-            print(str(data))
+            if not data.decode(self.format) == "iptal":
+                print(str(data))
             msgServer = str(self.generateRandom()).encode(self.format)
             self.sock.sendto(msgServer, addr)
 
