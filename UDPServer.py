@@ -12,6 +12,7 @@ class Server():
         self.port = 1024
         self.format = 'utf-8'
         self.sock.bind((self.host, self.port))
+        
 
     def generateRandom(self):
 

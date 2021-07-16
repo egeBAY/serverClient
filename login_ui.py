@@ -2,10 +2,12 @@ import sys
 import sqlite3
 import socket
 import threading
+import time
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow,QWidget
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QMovie
+from PyQt5.QtCore import Qt,QTimer
 
 
 class Window(QtWidgets.QWidget):
@@ -13,7 +15,8 @@ class Window(QtWidgets.QWidget):
     def __init__(self):
 
        super().__init__()
-    
+       
+       sys.setrecursionlimit(10**6)
        self.baglan()
        self.init_ui() 
 
@@ -64,8 +67,10 @@ class Window(QtWidgets.QWidget):
 
        self.loginButton.clicked.connect(self.login)
        #self.buttonDelete.clicked.connect(self.click)
+       
 
     def login(self):
+
         name = self.userID.text()
         par = self.password.text()
 
@@ -77,17 +82,43 @@ class Window(QtWidgets.QWidget):
             self.textSpace.setText("Yanlis Giris\nTekrar Deneyin!!!")
         else:
             self.textSpace.setText("Giris Basarili Selam {}".format(name))
+            self.loading_page = LoadingScreen()  
             self.openLogginPage()
+
+class LoadingScreen(QWidget):
+
+    def __init__(self):
+        
+        super().__init__()
+
+        self.setFixedSize(128,128)
+
+        self.label_animation = QLabel(self)
+
+        self.movie = QMovie("world.gif")
+        self.label_animation.setMovie(self.movie)
+
+        timer = QTimer(self)
+        self.movie.start()
+        timer.singleShot(8000, self.stopGif)
+
+        self.show()
+
+    def stopGif(self):
+        
+        self.movie.stop()
+        self.close()
 
 class LoggedIn(QWidget):
 
     def __init__(self):
 
         super().__init__()
-
+        
+        self.flag = 0
         self.init_ui()
         #self.connectServer()
-        self.connectClient("Client Connected !!!")
+        self.connectClient("iptal")
 
     def connectServer(self) -> None:
         host = "172.16.60.231"
@@ -97,7 +128,7 @@ class LoggedIn(QWidget):
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind((host, port))
-
+        
         while True:
             data, addr = sock.recvfrom(2048)
             print(str(data))
@@ -108,19 +139,39 @@ class LoggedIn(QWidget):
         host = socket.gethostbyname(socket.gethostname())    # "172.16.60.231"
         port = 1024
         format = 'utf-8'
+        global data
+
+        if self.flag == 0:
+            client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            t1 = threading.Timer(2,self.connectClient,args=(msg,))
+            t1.daemon = True
+            t1.start()
+           
+            client_sock.sendto(msg.encode(format), (host, port))
+            
+            
+            data, addr = client_sock.recvfrom(2048)
+            
+            print("From Server1: {}".format(str(data)))
+            client_sock.close()
+            
+        self.flag=0
+
+    def connectClient_2(self, msg) -> None:
+        #host = "172.16.60.205"
+        host = socket.gethostbyname(socket.gethostname())
+        port = 1024
+        format = 'utf-8'
+        #serverText = serverUi()
 
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
-        t1 = threading.Timer(2,self.connectClient,args=(msg,))
-        t1.daemon = True
-        t1.start()
-        
-        global data
-        client_sock.sendto(msg.encode(format), (host, port))
-        data, addr = client_sock.recvfrom(2048)
-        print("From Server: {}".format(str(data)))
-        client_sock.close()
 
+        client_sock.sendto(msg.encode(format), (host, port))
+        
+        data, addr = client_sock.recvfrom(2048)
+        print("From Server2: {}".format(str(data)))
+        self.connectClient("iptal")
         
     def init_ui(self):
 
@@ -165,7 +216,8 @@ class LoggedIn(QWidget):
             self.received_text.clear()
         elif sender.text() == "GONDER":
             print("Server'a {} gönderildi.".format(self.sendingText.toPlainText()))
-            self.connectClient(self.sendingText.toPlainText())
+            self.connectClient_2(self.sendingText.toPlainText())
+            self.flag = 1
         else:
             widget.addWidget(serverUi())
             widget.setCurrentIndex(widget.currentIndex() + 1)
@@ -193,10 +245,15 @@ class serverUi(QWidget):
         self.deleteTextButton.clicked.connect(self.clickServerUi)
         self.clientButton.clicked.connect(self.clickServerUi)
 
-        self.received_text.setPlainText(data.decode('utf-8'))
+        #self.received_text.setPlainText(data.decode('utf-8'))
+        self.update_serverText(b'Server:')
 
         self.setLayout(v_box)
-    
+
+    def update_serverText(self,text):
+        
+        self.received_text.setPlainText(text.decode('utf-8'))
+
     def clickServerUi(self):
 
         senderSrv = self.sender()
