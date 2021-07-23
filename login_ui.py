@@ -2,12 +2,15 @@ import sys
 import sqlite3
 import socket
 import threading
-import time
+import io
+import folium
+import json
 
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QAction, QLabel,QMainWindow,QWidget
+from PyQt5.QtWidgets import QAction, QLabel,QMainWindow, QVBoxLayout,QWidget
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt,QTimer
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 
 class Window(QtWidgets.QWidget):
@@ -16,7 +19,6 @@ class Window(QtWidgets.QWidget):
 
        super().__init__()
        
-       sys.setrecursionlimit(10**6)
        self.baglan()
        self.init_ui() 
 
@@ -91,7 +93,7 @@ class LoadingScreen(QWidget):
         
         super().__init__()
 
-        self.setFixedSize(128,128)
+        self.setFixedSize(64,64)
 
         self.label_animation = QLabel(self)
 
@@ -100,7 +102,7 @@ class LoadingScreen(QWidget):
 
         timer = QTimer(self)
         self.movie.start()
-        timer.singleShot(8000, self.stopGif)
+        timer.singleShot(2000, self.stopGif)
 
         self.show()
 
@@ -111,12 +113,16 @@ class LoadingScreen(QWidget):
 
 class LoggedIn(QWidget):
 
+    progress = pyqtSignal(str)
+
     def __init__(self):
 
         super().__init__()
         
         self.flag = 0
         self.init_ui()
+        self.flag = 0
+        self.flag2 = 0
         #self.connectServer()
         self.connectClient("iptal")
 
@@ -135,12 +141,13 @@ class LoggedIn(QWidget):
             msgServer = "Coming from UDP Server".encode(format)
             sock.sendto(msgServer, addr)
 
-    def connectClient(self, msg) -> None:
-        host = socket.gethostbyname(socket.gethostname())    # "172.16.60.231"
+    def connectClient(self, msg):
+        host =  "192.168.1.36" 
+        #host= socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
-        global data
 
+ 
         if self.flag == 0:
             client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             
@@ -150,7 +157,6 @@ class LoggedIn(QWidget):
            
             client_sock.sendto(msg.encode(format), (host, port))
             
-            
             data, addr = client_sock.recvfrom(2048)
             
             print("From Server1: {}".format(str(data)))
@@ -159,8 +165,8 @@ class LoggedIn(QWidget):
         self.flag=0
 
     def connectClient_2(self, msg) -> None:
-        #host = "172.16.60.205"
-        host = socket.gethostbyname(socket.gethostname())
+        host = "192.168.1.36"
+        #host = socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
         #serverText = serverUi()
@@ -179,6 +185,7 @@ class LoggedIn(QWidget):
         self.sendButton = QtWidgets.QPushButton("GONDER")
         self.deleteButton = QtWidgets.QPushButton("TEMIZLE")
         self.serverButton = QtWidgets.QPushButton("SERVER")
+        self.mapButton = QtWidgets.QPushButton("MAP")
 
         v_box = QtWidgets.QVBoxLayout()
 
@@ -186,10 +193,12 @@ class LoggedIn(QWidget):
         v_box.addWidget(self.sendButton)
         v_box.addWidget(self.deleteButton)
         v_box.addWidget(self.serverButton)
+        v_box.addWidget(self.mapButton)
 
         self.deleteButton.clicked.connect(self.click)
         self.sendButton.clicked.connect(self.click)
         self.serverButton.clicked.connect(self.click)
+        self.mapButton.clicked.connect(self.click)
 
         self.setLayout(v_box)
    
@@ -218,6 +227,9 @@ class LoggedIn(QWidget):
             print("Server'a {} gönderildi.".format(self.sendingText.toPlainText()))
             self.connectClient_2(self.sendingText.toPlainText())
             self.flag = 1
+        elif sender.text() == "MAP":
+            widget.addWidget(Map())
+            widget.setCurrentIndex(widget.currentIndex() + 1)
         else:
             widget.addWidget(serverUi())
             widget.setCurrentIndex(widget.currentIndex() + 1)
@@ -252,6 +264,7 @@ class serverUi(QWidget):
 
     def update_serverText(self,text):
         
+        threading.Timer(2, self.update_serverText, args=(text,))
         self.received_text.setPlainText(text.decode('utf-8'))
 
     def clickServerUi(self):
@@ -264,7 +277,65 @@ class serverUi(QWidget):
             widget.addWidget(LoggedIn())
             widget.setCurrentIndex(widget.currentIndex() + 1)
 
+
+class Map(QWidget):
+    def __init__(self):
         
+        super().__init__()
+        self.setWindowTitle('Map')
+        self.window_width, self.window_height = 800, 550
+        self.setMinimumSize(self.window_width, self.window_height)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        
+        #coordinate = received_coordinates.connectClient("").decode('utf-8')
+        #coordinate_list = coordinate.strip(')(').split(', ')
+        #cordinateX = float(coordinate_list[0])
+        #cordinateY = float(coordinate_list[1])
+        
+        #print(cordinateX, cordinateY)
+        m = folium.Map(
+            tiles='Stamen Terrain',
+            zoom_start=13,
+            location=(39.766706, 30.525631)
+        )
+
+
+
+        # save map data to data object
+        data = io.BytesIO()
+        m.save(data, close_file=False)
+
+
+
+        webView = QWebEngineView()
+        webView.setHtml(data.getvalue().decode())
+        layout.addWidget(webView)
+
+    @staticmethod
+    def draw_marker():
+        
+        with open('coordinates.json') as file:
+            coordinates = json.load(file)
+            print(coordinates)
+
+        for values in coordinates['coordinates']:
+            coordinateX = values['xValue']
+            coordinateY = values['yValue']
+            print(coordinateX,coordinateY)
+
+        m = folium.Map(
+            tiles='Stamen Terrain',
+            zoom_start=13,
+            location=(coordinateX, coordinateY)
+               )
+
+
+        mark = folium.Marker(location=[coordinateX, coordinateY],
+                        icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(m)
+
 
 class Menu(QMainWindow):
     
@@ -283,14 +354,14 @@ class Menu(QMainWindow):
         menubar = self.menuBar()
 
         clientMenu = menubar.addMenu("Client")
-        serverMenu = menubar.addMenu("Server")
+        MapMenu = menubar.addMenu("MAP")
 
         click_client = QAction("Client",self)
-        click_server = QAction("Server",self)
+        click_map = QAction("Map",self)
         clientMenu.addAction(click_client)
-        serverMenu.addAction(click_server)
+        MapMenu.addAction(click_map)
         clientMenu.triggered.connect(self.runMenus)
-        serverMenu.triggered.connect(self.runMenus)
+        MapMenu.triggered.connect(self.runMenus)
 
         self.setWindowTitle("GPS App")
         self.show()
@@ -299,7 +370,7 @@ class Menu(QMainWindow):
         if action.text() == "Client":
             print("Clienta basildi!!!")
         else:
-            print("Servera basildi!!!")
+            print("Mapa basildi!!!")
 
 app = QtWidgets.QApplication(sys.argv)
 
