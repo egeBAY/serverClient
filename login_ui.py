@@ -9,7 +9,7 @@ import json
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow, QVBoxLayout,QWidget
 from PyQt5.QtGui import QPixmap, QMovie
-from PyQt5.QtCore import Qt,QTimer
+from PyQt5.QtCore import Qt,QTimer,pyqtSignal
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 
@@ -121,6 +121,7 @@ class LoggedIn(QWidget):
         
         self.flag = 0
         self.init_ui()
+        self.text = ""
         self.flag = 0
         self.flag2 = 0
         #self.connectServer()
@@ -142,8 +143,8 @@ class LoggedIn(QWidget):
             sock.sendto(msgServer, addr)
 
     def connectClient(self, msg):
-        host =  "192.168.1.36" 
-        #host= socket.gethostbyname(socket.gethostname())
+        #host =  "192.168.1.36" 
+        host= socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
 
@@ -160,13 +161,19 @@ class LoggedIn(QWidget):
             data, addr = client_sock.recvfrom(2048)
             
             print("From Server1: {}".format(str(data)))
+
+            self.text = str(data)+"\n"+self.text
+            self.progress.emit(self.text)
+            if self.flag2 == 1:
+                self.progress.connect(self.received_text.setPlainText)
+
             client_sock.close()
             
         self.flag=0
 
     def connectClient_2(self, msg) -> None:
-        host = "192.168.1.36"
-        #host = socket.gethostbyname(socket.gethostname())
+        #host = "192.168.1.36"
+        host = socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
         #serverText = serverUi()
@@ -231,8 +238,45 @@ class LoggedIn(QWidget):
             widget.addWidget(Map())
             widget.setCurrentIndex(widget.currentIndex() + 1)
         else:
-            widget.addWidget(serverUi())
+
+            self.page = QtWidgets.QWidget()
+            self.received_text = QtWidgets.QTextEdit(self.page)
+            self.deleteTextButton = QtWidgets.QPushButton("CLEAR", self.page)
+            self.clientButton = QtWidgets.QPushButton("CLIENT", self.page)
+
+            v_box = QtWidgets.QVBoxLayout(self.page)
+            v_box.addWidget(self.received_text)
+            v_box.addWidget(self.deleteTextButton)
+            v_box.addWidget(self.clientButton)
+
+            self.deleteTextButton.clicked.connect(self.clickServerUi)
+            self.clientButton.clicked.connect(self.clickServerUi)
+
+            #self.received_text.setPlainText(data.decode('utf-8'))
+            self.update_serverText(b'Server:')
+            #self.progress.connect(self.update_serverText)
+
+            self.setLayout(v_box)
+            widget.addWidget(self.page)
+
             widget.setCurrentIndex(widget.currentIndex() + 1)
+            #self.init_server_ui()
+            self.flag2 = 1
+
+    def update_serverText(self, text):
+
+            self.received_text.setPlainText(text.decode('utf-8'))
+
+    def clickServerUi(self):
+
+        senderSrv = self.sender()
+
+        if senderSrv.text() == "CLEAR":
+            self.received_text.clear()
+        else:
+            widget.addWidget(LoggedIn())
+            widget.setCurrentIndex(widget.currentIndex() + 1)
+
 
 class serverUi(QWidget):
     
