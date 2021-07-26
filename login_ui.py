@@ -5,13 +5,13 @@ import threading
 import io
 import folium
 import json
+import time
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow, QVBoxLayout,QWidget
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt,QTimer,pyqtSignal
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-
 
 class Window(QtWidgets.QWidget):
     
@@ -185,7 +185,8 @@ class LoggedIn(QWidget):
         data, addr = client_sock.recvfrom(2048)
         print("From Server2: {}".format(str(data)))
         self.connectClient("iptal")
-        
+
+
     def init_ui(self):
 
         self.sendingText = QtWidgets.QTextEdit()
@@ -235,8 +236,11 @@ class LoggedIn(QWidget):
             self.connectClient_2(self.sendingText.toPlainText())
             self.flag = 1
         elif sender.text() == "MAP":
-            widget.addWidget(Map())
+            
+            m = Map()
+            widget.addWidget(m)
             widget.setCurrentIndex(widget.currentIndex() + 1)
+
         else:
 
             self.page = QtWidgets.QWidget()
@@ -323,6 +327,7 @@ class serverUi(QWidget):
 
 
 class Map(QWidget):
+    
     def __init__(self):
         
         super().__init__()
@@ -333,7 +338,7 @@ class Map(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        
+
         #coordinate = received_coordinates.connectClient("").decode('utf-8')
         #coordinate_list = coordinate.strip(')(').split(', ')
         #cordinateX = float(coordinate_list[0])
@@ -345,41 +350,55 @@ class Map(QWidget):
             zoom_start=13,
             location=(39.766706, 30.525631)
         )
-
-
+        
+        
 
         # save map data to data object
         data = io.BytesIO()
         m.save(data, close_file=False)
 
-
-
         webView = QWebEngineView()
         webView.setHtml(data.getvalue().decode())
         layout.addWidget(webView)
 
-    @staticmethod
-    def draw_marker():
+
+    def draw_marker(self):
         
         with open('coordinates.json') as file:
             coordinates = json.load(file)
             print(coordinates)
 
+
         for values in coordinates['coordinates']:
             coordinateX = values['xValue']
             coordinateY = values['yValue']
+            try:
+                mark = folium.Marker(location=[coordinateX, coordinateY],
+                             icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(self.m)
+            
+            except:
+                print("ZAAAA")
             print(coordinateX,coordinateY)
 
-        m = folium.Map(
-            tiles='Stamen Terrain',
-            zoom_start=13,
-            location=(coordinateX, coordinateY)
-               )
 
+"""
+    def draw_marker(self):    
+        while 1:
+            with open('coordinates.json') as file:
+                coordinates = json.load(file)
+                print(coordinates)
 
-        mark = folium.Marker(location=[coordinateX, coordinateY],
-                        icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(m)
-
+                values = coordinates['coordinates']
+                print(values)
+                coordinateX = values[0]['xValue']
+                coordinateY = values[0]['yValue']
+                #coordinateX = values['xValue']
+                #coordinateY = values['yValue']
+                mark = folium.Marker(location=[coordinateX, coordinateY],
+                             icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(self.m)
+                print(coordinateX,coordinateY)
+                time.sleep(10)
+"""
 
 class Menu(QMainWindow):
     
