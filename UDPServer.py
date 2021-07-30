@@ -24,7 +24,7 @@ class Server():
        generatedX = 39 + generated
        generatedY = 30 + generated
        
-
+    
        for item in data['coordinates']:
            item['xValue'] = generatedX
            item['yValue'] = generatedY

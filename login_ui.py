@@ -3,17 +3,16 @@ import sqlite3
 import socket
 import threading
 import io
-import folium
 import json
 import numpy as np
 import gmplot
+import pyautogui
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow, QVBoxLayout,QWidget
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt,QTimer,pyqtSignal
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from folium import plugins
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtWebEngineWidgets import *
@@ -124,11 +123,11 @@ class LoggedIn(QWidget):
 
         super().__init__()
         
-        self.flag = 0
         self.init_ui()
         self.text = ""
         self.flag = 0
         self.flag2 = 0
+        self.flag3 = 0
         #self.connectServer()
         self.connectClient("iptal")
 
@@ -171,7 +170,8 @@ class LoggedIn(QWidget):
             self.progress.emit(self.text)
             if self.flag2 == 1:
                 self.progress.connect(self.received_text.setPlainText)
-
+            if self.flag3 == 1:
+                self.draw_marker()
             client_sock.close()
             
         self.flag=0
@@ -241,7 +241,7 @@ class LoggedIn(QWidget):
             self.connectClient_2(self.sendingText.toPlainText())
             self.flag = 1
         elif sender.text() == "MAP":
-            
+           
             self.page2 = QtWidgets.QWidget()
             widget.addWidget(self.page2)
             #widget.addWidget(Map())
@@ -260,22 +260,26 @@ class LoggedIn(QWidget):
             #cordinateY = float(coordinate_list[1])
 
             #print(cordinateX, cordinateY)
-            self.m = folium.Map(
-                tiles='Stamen Terrain',
-                zoom_start=13,
-                location=(39.766706, 30.525631)
+            #self.m = folium.Map(
+                #tiles='Stamen Terrain',
+                #zoom_start=13,
+                #location=(39.766706, 30.525631)
 
-            )
+            #)
 
             self.draw_marker()
 
             # save map data to data object
-            self.data1 = io.BytesIO()
-            self.m.save(self.data1, close_file=False)
+            #self.data1 = io.BytesIO()
+            #self.m.save(self.data1, close_file=False)
 
             self.webView = QWebEngineView()
-            self.webView.setHtml(self.data1.getvalue().decode())
+            self.webView.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+            self.webView.load(QUrl.fromLocalFile(
+                QDir.current().absoluteFilePath('geomap.html')))
+            #self.webView.setHtml(self.data1.getvalue().decode())
             layout.addWidget(self.webView)
+            self.flag3 = 1
             
             #m = Map()
             #widget.addWidget(m)
@@ -323,16 +327,31 @@ class LoggedIn(QWidget):
 
     def draw_marker(self):
             
-            with open('coordinates.json', "r") as file:
-                coordinates = json.load(file)
-                print(coordinates)
+        with open('coordinates.json') as file:
+            coordinates = json.load(file)
+            print(coordinates)
 
-            for values in coordinates['coordinates']:
-                coordinateX = values['xValue']
-                coordinateY = values['yValue']
+        for values in coordinates['coordinates']:
+            coordinateX = values['xValue']
+            coordinateY = values['yValue']
 
-            mark = folium.Marker(location=[coordinateX, coordinateY],
-                                 icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(self.m)
+            lats, longs = zip(
+                *[(39.766706, 30.525631), (39.616830811910624, 30.616830811910624),
+
+                
+                ])
+
+
+            try:
+                gmap = gmplot.GoogleMapPlotter(
+                    coordinateX, coordinateY, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
+                gmap.enable_marker_dropping(color='orange')
+                gmap.marker(coordinateX, coordinateY, color='cornflowerblue')
+                gmap.scatter(lats, longs, "#6e2142", marker=False, size= 8)
+                gmap.draw('geomap.html')
+            except:
+                print("ZAAAA")
+            print(coordinateX, coordinateY)
 
 class serverUi(QWidget):
     
@@ -390,6 +409,14 @@ class Map(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
+        #apikey = 'AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0'
+        self.draw_marker()
+        #gmap = gmplot.GoogleMapPlotter(
+            #39.766706, 30.525631, 14, apikey=apikey)
+
+        #gmap.marker(39.766706, 30.525631, color='cornflowerblue')
+
+        #gmap.draw('geomap.html')
 
         #coordinate = received_coordinates.connectClient("").decode('utf-8')
         #coordinate_list = coordinate.strip(')(').split(', ')
@@ -397,6 +424,7 @@ class Map(QWidget):
         #cordinateY = float(coordinate_list[1])
         
         #print(cordinateX, cordinateY)
+        """
         m = folium.Map(
             tiles='Stamen Terrain',
             zoom_start=13,
@@ -413,14 +441,16 @@ class Map(QWidget):
         # save map data to data object
         data = io.BytesIO()
         m.save(data, close_file=False)
-
+        """
         webView = QWebEngineView()
-        webView.setHtml(data.getvalue().decode())
+        webView.settings().setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        webView.load(QUrl.fromLocalFile(
+            QDir.current().absoluteFilePath('geomap.html')))
+        #webView.setHtml(data.getvalue().decode())
         layout.addWidget(webView)
 
-
     def draw_marker(self):
-        
+
         with open('coordinates.json') as file:
             coordinates = json.load(file)
             print(coordinates)
@@ -430,8 +460,10 @@ class Map(QWidget):
             coordinateX = values['xValue']
             coordinateY = values['yValue']
             try:
-                mark = folium.Marker(location=[coordinateX, coordinateY],
-                             icon=folium.Icon(color='red', icon='euro', prefix='fa')).add_to(self.m)
+                gmap = gmplot.GoogleMapPlotter(
+                    coordinateX, coordinateY, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
+                gmap.marker(coordinateX, coordinateY, color='cornflowerblue')
+                gmap.draw('geomap.html')
             
             except:
                 print("ZAAAA")
