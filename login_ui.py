@@ -2,11 +2,8 @@ import sys
 import sqlite3
 import socket
 import threading
-import io
 import json
-import numpy as np
 import gmplot
-import pyautogui
 import random
 
 from PyQt5 import QtCore, QtWidgets
@@ -18,6 +15,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtWebEngineWidgets import *
 
+
 class Window(QtWidgets.QWidget):
     
     def __init__(self):
@@ -26,7 +24,9 @@ class Window(QtWidgets.QWidget):
        
        self.baglan()
        self.init_ui() 
-
+       self.setFixedSize(800, 550)
+       
+       
     def baglan(self):
         baglanti = sqlite3.connect("database.db")
 
@@ -45,6 +45,7 @@ class Window(QtWidgets.QWidget):
        self.label = QLabel(self)
        self.label.setGeometry(QtCore.QRect(0, 0, 800, 550))
        self.label.setPixmap(QPixmap('gps.jpg'))
+       
        self.label.setScaledContents(True)
 
        self.userID = QtWidgets.QLineEdit()
@@ -54,6 +55,8 @@ class Window(QtWidgets.QWidget):
        self.password.setEchoMode(QtWidgets.QLineEdit.Password)
        self.loginButton = QtWidgets.QPushButton("Giris Yap")
        self.textSpace = QtWidgets.QLabel("")
+
+
 
        v_box = QtWidgets.QVBoxLayout()
 
@@ -68,9 +71,18 @@ class Window(QtWidgets.QWidget):
        h_box.addStretch()
        h_box.addLayout(v_box)
        h_box.addStretch()
-
+       
+       
+       
        self.setLayout(h_box)
     
+    
+    
+        
+       
+       
+       
+       self.loginButton.setShortcut("Return")
 
        self.loginButton.clicked.connect(self.login)
        #self.buttonDelete.clicked.connect(self.click)
@@ -130,7 +142,9 @@ class LoggedIn(QWidget):
         self.flag = 0
         self.flag2 = 0
         self.flag3 = 0
+        
         self.i = 0
+        self.checklist = [0,0]
         #self.connectServer()
         self.connectClient("iptal")
 
@@ -172,8 +186,11 @@ class LoggedIn(QWidget):
             self.text = str(data)+"\n"+self.text
             self.progress.emit(self.text)
             
-            self.lats, self.longs = 39+random.random(), 30+ random.random()
             
+            coordinate_list = data.decode('utf-8').strip(')(').split(', ')
+            cordinateX = float(coordinate_list[0])
+            cordinateY = float(coordinate_list[1])
+            self.lats, self.longs = cordinateX, cordinateY
             
             self.progress2.emit(self.lats,self.longs)
             
@@ -259,7 +276,9 @@ class LoggedIn(QWidget):
             self.connectClient_2(self.sendingText.toPlainText())
             self.flag = 1
         elif sender.text() == "MAP":
-           
+            self.maxMarker = 0
+            
+
             self.page2 = QtWidgets.QWidget()
             widget.addWidget(self.page2)
             #widget.addWidget(Map())
@@ -268,9 +287,15 @@ class LoggedIn(QWidget):
             self.setWindowTitle('Map')
             self.window_width, self.window_height = 800, 550
             self.setMinimumSize(self.window_width, self.window_height)
+            self.updateButton = QPushButton("Update",self.page2)
+            self.backButton = QPushButton("Back",self.page2)
+            
+            
 
             layout = QVBoxLayout(self.page2)
-            self.setLayout(layout)
+            layout.addWidget(self.updateButton)
+            layout.addWidget(self.backButton)
+            #self.setLayout(layout)
 
             #coordinate = received_coordinates.connectClient("").decode('utf-8')
             #coordinate_list = coordinate.strip(')(').split(', ')
@@ -297,13 +322,15 @@ class LoggedIn(QWidget):
                 QDir.current().absoluteFilePath('geomap.html')))
             #self.webView.setHtml(self.data1.getvalue().decode())
             layout.addWidget(self.webView)
+            
             self.gmap = gmplot.GoogleMapPlotter(
                 39, 30, 6, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
         
-            
+            self.webView.reload()
             
             self.flag3 = 1
-            
+            self.updateButton.clicked.connect(self.update)
+            self.backButton.clicked.connect(self.clickServerUi)
             #m = Map()
             #widget.addWidget(m)
             #widget.setCurrentIndex(widget.currentIndex() + 1)
@@ -327,12 +354,15 @@ class LoggedIn(QWidget):
             self.update_serverText(b'Server:')
             #self.progress.connect(self.update_serverText)
 
-            self.setLayout(v_box)
+            #self.setLayout(v_box)
             widget.addWidget(self.page)
 
             widget.setCurrentIndex(widget.currentIndex() + 1)
             #self.init_server_ui()
             self.flag2 = 1
+    def update(self):
+        self.webView.reload()
+        
 
     def update_serverText(self, text):
 
@@ -353,7 +383,8 @@ class LoggedIn(QWidget):
         self.lats=x
         self.longs=y
         #self.webView.repaint()
-        self.webView.reload()
+        
+        
         
         """    
         with open('coordinates.json') as file:
@@ -387,10 +418,16 @@ class LoggedIn(QWidget):
          #   self.lats, self.longs, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
         #self.gmap.enable_marker_dropping(color='orange')
         #self.gmap.marker(39, 30, color='cornflowerblue')
-        self.gmap.marker(self.lats, self.longs, color='cornflowerblue')
+        if self.maxMarker <=15 and self.checklist[0] != self.lats:
         
-        #self.gmap.scatter(self.lats, self.longs, marker=True, size= 1000)
-        self.gmap.draw('geomap.html')
+            self.gmap.marker(self.lats, self.longs, color='cornflowerblue')
+            
+            #self.gmap.scatter(self.lats, self.longs, marker=True, size= 1000)
+            self.gmap.draw('geomap.html')
+            self.maxMarker+=1
+        
+        self.checklist.clear()
+        self.checklist.append(self.lats) 
         
         
         
@@ -571,6 +608,7 @@ mainWindow = Window()
 widget = QtWidgets.QStackedWidget()
 widget.addWidget(mainWindow)
 widget.resize(800,550)
+
 widget.show()
 
 sys.exit(app.exec_())
