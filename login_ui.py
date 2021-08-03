@@ -2,11 +2,9 @@ import sys
 import sqlite3
 import socket
 import threading
-import io
 import json
-import numpy as np
 import gmplot
-import pyautogui
+import random
 
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAction, QLabel,QMainWindow, QVBoxLayout,QWidget
@@ -17,6 +15,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtWebEngineWidgets import *
 
+
 class Window(QtWidgets.QWidget):
     
     def __init__(self):
@@ -25,7 +24,9 @@ class Window(QtWidgets.QWidget):
        
        self.baglan()
        self.init_ui() 
-
+       self.setFixedSize(800, 550)
+       
+       
     def baglan(self):
         baglanti = sqlite3.connect("database.db")
 
@@ -44,6 +45,7 @@ class Window(QtWidgets.QWidget):
        self.label = QLabel(self)
        self.label.setGeometry(QtCore.QRect(0, 0, 800, 550))
        self.label.setPixmap(QPixmap('gps.jpg'))
+       
        self.label.setScaledContents(True)
 
        self.userID = QtWidgets.QLineEdit()
@@ -53,6 +55,8 @@ class Window(QtWidgets.QWidget):
        self.password.setEchoMode(QtWidgets.QLineEdit.Password)
        self.loginButton = QtWidgets.QPushButton("Giris Yap")
        self.textSpace = QtWidgets.QLabel("")
+
+
 
        v_box = QtWidgets.QVBoxLayout()
 
@@ -67,9 +71,18 @@ class Window(QtWidgets.QWidget):
        h_box.addStretch()
        h_box.addLayout(v_box)
        h_box.addStretch()
-
+       
+       
+       
        self.setLayout(h_box)
     
+    
+    
+        
+       
+       
+       
+       self.loginButton.setShortcut("Return")
 
        self.loginButton.clicked.connect(self.login)
        #self.buttonDelete.clicked.connect(self.click)
@@ -118,6 +131,7 @@ class LoadingScreen(QWidget):
 class LoggedIn(QWidget):
 
     progress = pyqtSignal(str)
+    progress2 = pyqtSignal(float,float)
 
     def __init__(self):
 
@@ -128,12 +142,15 @@ class LoggedIn(QWidget):
         self.flag = 0
         self.flag2 = 0
         self.flag3 = 0
+        
+        self.i = 0
+        self.checklist = [0,0]
         #self.connectServer()
         self.connectClient("iptal")
 
     def connectServer(self) -> None:
-        host = "172.16.60.231"
-        #socket.gethostbyname(socket.gethostname())
+        #host = "172.16.60.231"
+        host = socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
 
@@ -147,8 +164,8 @@ class LoggedIn(QWidget):
             sock.sendto(msgServer, addr)
 
     def connectClient(self, msg):
-        #host =  "192.168.1.36" 
-        host= socket.gethostbyname(socket.gethostname())
+        host =  "172.16.60.231" 
+        #host= socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
 
@@ -156,7 +173,7 @@ class LoggedIn(QWidget):
         if self.flag == 0:
             client_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             
-            t1 = threading.Timer(2,self.connectClient,args=(msg,))
+            t1 = threading.Timer(3,self.connectClient,args=(msg,))
             t1.daemon = True
             t1.start()
            
@@ -168,17 +185,35 @@ class LoggedIn(QWidget):
 
             self.text = str(data)+"\n"+self.text
             self.progress.emit(self.text)
+            
+            
+            coordinate_list = data.decode('utf-8').strip(')(').split(', ')
+            cordinateX = float(coordinate_list[0])
+            cordinateY = float(coordinate_list[1])
+            self.lats, self.longs = cordinateX, cordinateY
+            
+            self.progress2.emit(self.lats,self.longs)
+            
             if self.flag2 == 1:
                 self.progress.connect(self.received_text.setPlainText)
             if self.flag3 == 1:
-                self.draw_marker()
+                """
+                self.lats, self.longs = zip(
+                *[(39.766706+self.i, 30.525631+self.i), (39.616830811910624, 30.616830811910624),
+                  (39.546461511615+self.i, 30.5651151531+self.i)])
+                """
+                
+                self.progress2.connect(self.draw_marker)
+                #self.draw_marker()
+                
+                
             client_sock.close()
             
         self.flag=0
 
     def connectClient_2(self, msg) -> None:
-        #host = "192.168.1.36"
-        host = socket.gethostbyname(socket.gethostname())
+        host = "172.16.60.231"
+        #host = socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
         #serverText = serverUi()
@@ -241,7 +276,9 @@ class LoggedIn(QWidget):
             self.connectClient_2(self.sendingText.toPlainText())
             self.flag = 1
         elif sender.text() == "MAP":
-           
+            self.maxMarker = 0
+            
+
             self.page2 = QtWidgets.QWidget()
             widget.addWidget(self.page2)
             #widget.addWidget(Map())
@@ -250,9 +287,15 @@ class LoggedIn(QWidget):
             self.setWindowTitle('Map')
             self.window_width, self.window_height = 800, 550
             self.setMinimumSize(self.window_width, self.window_height)
+            self.updateButton = QPushButton("Update",self.page2)
+            self.backButton = QPushButton("Back",self.page2)
+            
+            
 
             layout = QVBoxLayout(self.page2)
-            self.setLayout(layout)
+            layout.addWidget(self.updateButton)
+            layout.addWidget(self.backButton)
+            #self.setLayout(layout)
 
             #coordinate = received_coordinates.connectClient("").decode('utf-8')
             #coordinate_list = coordinate.strip(')(').split(', ')
@@ -267,7 +310,7 @@ class LoggedIn(QWidget):
 
             #)
 
-            self.draw_marker()
+            #self.draw_marker()
 
             # save map data to data object
             #self.data1 = io.BytesIO()
@@ -279,8 +322,15 @@ class LoggedIn(QWidget):
                 QDir.current().absoluteFilePath('geomap.html')))
             #self.webView.setHtml(self.data1.getvalue().decode())
             layout.addWidget(self.webView)
-            self.flag3 = 1
             
+            self.gmap = gmplot.GoogleMapPlotter(
+                39, 30, 6, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
+        
+            self.webView.reload()
+            
+            self.flag3 = 1
+            self.updateButton.clicked.connect(self.update)
+            self.backButton.clicked.connect(self.clickServerUi)
             #m = Map()
             #widget.addWidget(m)
             #widget.setCurrentIndex(widget.currentIndex() + 1)
@@ -304,12 +354,15 @@ class LoggedIn(QWidget):
             self.update_serverText(b'Server:')
             #self.progress.connect(self.update_serverText)
 
-            self.setLayout(v_box)
+            #self.setLayout(v_box)
             widget.addWidget(self.page)
 
             widget.setCurrentIndex(widget.currentIndex() + 1)
             #self.init_server_ui()
             self.flag2 = 1
+    def update(self):
+        self.webView.reload()
+        
 
     def update_serverText(self, text):
 
@@ -325,8 +378,15 @@ class LoggedIn(QWidget):
             widget.addWidget(LoggedIn())
             widget.setCurrentIndex(widget.currentIndex() + 1)
 
-    def draw_marker(self):
-            
+    def draw_marker(self,x,y):
+        
+        self.lats=x
+        self.longs=y
+        #self.webView.repaint()
+        
+        
+        
+        """    
         with open('coordinates.json') as file:
             coordinates = json.load(file)
             print(coordinates)
@@ -334,25 +394,44 @@ class LoggedIn(QWidget):
         for values in coordinates['coordinates']:
             coordinateX = values['xValue']
             coordinateY = values['yValue']
+        """ 
+        """
+        lats, longs = zip(
+            *[(39.766706+self.i, 30.525631+self.i), (39.616830811910624, 30.616830811910624),
+              (39.546461511615+self.i, 30.5651151531+self.i)
 
-            lats, longs = zip(
-                *[(39.766706, 30.525631), (39.616830811910624, 30.616830811910624),
+            
+            ])
+        """
+        """
+        self.lats, self.longs = zip(
+            *[(x, y), (x+0.1, y),
+              (x+0.00054, y+0.15613)
 
-                
-                ])
-
-
-            try:
-                gmap = gmplot.GoogleMapPlotter(
-                    coordinateX, coordinateY, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
-                gmap.enable_marker_dropping(color='orange')
-                gmap.marker(coordinateX, coordinateY, color='cornflowerblue')
-                gmap.scatter(lats, longs, "#6e2142", marker=False, size= 8)
-                gmap.draw('geomap.html')
-            except:
-                print("ZAAAA")
-            print(coordinateX, coordinateY)
-
+            
+            ])
+        """  
+        
+        
+        
+        #self.gmap = gmplot.GoogleMapPlotter(
+         #   self.lats, self.longs, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
+        #self.gmap.enable_marker_dropping(color='orange')
+        #self.gmap.marker(39, 30, color='cornflowerblue')
+        if self.maxMarker <=15 and self.checklist[0] != self.lats:
+        
+            self.gmap.marker(self.lats, self.longs, color='cornflowerblue')
+            
+            #self.gmap.scatter(self.lats, self.longs, marker=True, size= 1000)
+            self.gmap.draw('geomap.html')
+            self.maxMarker+=1
+        
+        self.checklist.clear()
+        self.checklist.append(self.lats) 
+        
+        
+        
+           
 class serverUi(QWidget):
     
     def __init__(self):
@@ -460,10 +539,9 @@ class Map(QWidget):
             coordinateX = values['xValue']
             coordinateY = values['yValue']
             try:
-                gmap = gmplot.GoogleMapPlotter(
-                    coordinateX, coordinateY, 14, apikey='AIzaSyDpgKJ3LZciHRNcrHQoVdgbWRgim_Y5jU0')
-                gmap.marker(coordinateX, coordinateY, color='cornflowerblue')
-                gmap.draw('geomap.html')
+                
+                self.gmap.marker(coordinateX, coordinateY, color='cornflowerblue')
+                self.gmap.draw('geomap.html')
             
             except:
                 print("ZAAAA")
@@ -530,6 +608,7 @@ mainWindow = Window()
 widget = QtWidgets.QStackedWidget()
 widget.addWidget(mainWindow)
 widget.resize(800,550)
+
 widget.show()
 
 sys.exit(app.exec_())

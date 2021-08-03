@@ -10,6 +10,7 @@ class Server():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.host = socket.gethostbyname(socket.gethostname())
         self.port = 1024
+        
         self.format = 'utf-8'
         self.sock.bind((self.host, self.port))
         
