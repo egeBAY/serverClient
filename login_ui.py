@@ -76,12 +76,7 @@ class Window(QtWidgets.QWidget):
        
        self.setLayout(h_box)
     
-    
-    
-        
-       
-       
-       
+
        self.loginButton.setShortcut("Return")
 
        self.loginButton.clicked.connect(self.login)
@@ -164,7 +159,7 @@ class LoggedIn(QWidget):
             sock.sendto(msgServer, addr)
 
     def connectClient(self, msg):
-        host =  "172.16.60.231" 
+        host = "192.168.43.227"
         #host= socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'
@@ -212,7 +207,7 @@ class LoggedIn(QWidget):
         self.flag=0
 
     def connectClient_2(self, msg) -> None:
-        host = "172.16.60.231"
+        host = "192.168.43.227"
         #host = socket.gethostbyname(socket.gethostname())
         port = 1024
         format = 'utf-8'

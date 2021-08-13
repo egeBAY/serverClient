@@ -13,17 +13,16 @@ class Server():
         
         self.format = 'utf-8'
         self.sock.bind((self.host, self.port))
+        print("Host : "+ str(self.host) + "\nPort : " + str(self.port))
         
 
     def generateCoordinate(self):
        
        with open('coordinates.json', "r") as f:
            data = json.load(f)
-       
-       generated = random.random()
 
-       generatedX = 39 + generated
-       generatedY = 30 + generated
+       generatedX = 39 + random.random()
+       generatedY = 30 + random.random()
        
     
        for item in data['coordinates']:
@@ -36,7 +35,6 @@ class Server():
        return generatedX,generatedY
 
 
-
     def listenClient(self):
         
 
@@ -46,6 +44,7 @@ class Server():
         tServer.start()
  
         while True: 
+
             data, addr = self.sock.recvfrom(2048)
             if not data.decode(self.format) == "iptal":
                 print(str(data))
